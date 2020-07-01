@@ -1,0 +1,70 @@
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - build/**
+      - VERSION
+  pull_request:
+    paths:
+      - build/**
+      - VERSION  
+name: pull-request
+jobs:
+  build-images:
+    name: Image Builds
+    runs-on: ubuntu-latest
+    steps:
+      - name: git checkout
+        uses: actions/checkout@v2
+
+      - name: extract versions
+        id: versions
+        run: |
+          export VERSION="$(cat VERSION)"
+          export DIRTY_VERSION="${VERSION}-$(git log --format=%h -1)"
+
+          echo "::set-output name=version::$(cat VERSION)"
+          echo "::set-output name=dirty-version::$(cat VERSION)-$(git log --format=%h -1)"
+
+      - name: build images
+        run: |
+          ./hack/build-images.sh ${{ steps.versions.outputs.dirty-version }} brix4dayz
+
+      - name: retag images
+        run: |
+          ./hack/retag-images.sh ${{ steps.versions.outputs.dirty-version }} ${{ steps.versions.outputs.version }}
+        if: ${{ github.event_name == 'push' }}
+
+      - name: login to dockerhub
+        uses: actions-hub/docker/login@master
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        if: ${{ github.event_name == 'push' }}
+
+      - name: push images
+        run: |
+          ./hack/push-images.sh ${{ steps.versions.outputs.version }}
+        if: ${{ github.event_name == 'push' }}
+
+      - name: retag images
+        run: |
+          ./hack/retag-images.sh ${{ steps.versions.outputs.version }} latest
+        if: ${{ github.event_name == 'push' }}
+
+      - name: push images
+        run: |
+          ./hack/push-images.sh latest
+        if: ${{ github.event_name == 'push' }}
+
+      - name: github release
+        uses: actions/create-release@latest
+        with:
+          tag_name: ${{ steps.versions.outputs.version }}
+          release_name: Pre Release ${{ steps.versions.outputs.version }}
+          body: |
+            - base `brix4dayz/rogue` image
+          draft: false
+          prerelease: true
+        if: ${{ github.event_name == 'push' }}
