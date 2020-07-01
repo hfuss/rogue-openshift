@@ -29,6 +29,11 @@ jobs:
           echo "::set-output name=version::$(cat VERSION)"
           echo "::set-output name=dirty-version::$(cat VERSION)-$(git log --format=%h -1)"
 
+      - name: ensure git tag does not exist
+        run: |
+          ! git rev-parse ${{ steps.versions.outputs.version }}
+        if: ${{ github.event_name == 'push' }}
+
       - name: build images
         run: |
           ./hack/build-images.sh ${{ steps.versions.outputs.dirty-version }} brix4dayz
@@ -44,6 +49,8 @@ jobs:
 
       - name: github release
         uses: actions/create-release@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.versions.outputs.version }}
           release_name: Pre Release ${{ steps.versions.outputs.version }}
