@@ -35,7 +35,7 @@ jobs:
 
       - name: push images
         run: |
-          docker login --username ${{ secrets.DOCKER_USERNAME }} --password-stdin docker.io <<<${{ secrets.DOCKER_PASSWORD }}
+          docker login --username ${{ secrets.DOCKER_USERNAME }} --password-stdin docker.io <<<'${{ secrets.DOCKER_PASSWORD }}'
           ./hack/retag-images.sh ${{ steps.versions.outputs.dirty-version }} ${{ steps.versions.outputs.version }}
           ./hack/push-images.sh ${{ steps.versions.outputs.version }}
           ./hack/retag-images.sh ${{ steps.versions.outputs.version }} latest
