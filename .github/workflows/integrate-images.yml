@@ -3,12 +3,14 @@ on:
     branches:
       - master
     paths:
+      - .github/workflows/integrate-images.yml
       - build/**
       - VERSION
   pull_request:
     paths:
+      - .github/workflows/integrate-images.yml
       - build/**
-      - VERSION  
+      - VERSION
 name: pull-request
 jobs:
   build-images:
@@ -31,30 +33,12 @@ jobs:
         run: |
           ./hack/build-images.sh ${{ steps.versions.outputs.dirty-version }} brix4dayz
 
-      - name: retag images
+      - name: push images
         run: |
+          docker login --username ${{ secrets.DOCKER_USERNAME }} --password-stdin docker.io <<<${{ secrets.DOCKER_PASSWORD }}
           ./hack/retag-images.sh ${{ steps.versions.outputs.dirty-version }} ${{ steps.versions.outputs.version }}
-        if: ${{ github.event_name == 'push' }}
-
-      - name: login to dockerhub
-        uses: actions-hub/docker/login@master
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-        if: ${{ github.event_name == 'push' }}
-
-      - name: push images
-        run: |
           ./hack/push-images.sh ${{ steps.versions.outputs.version }}
-        if: ${{ github.event_name == 'push' }}
-
-      - name: retag images
-        run: |
           ./hack/retag-images.sh ${{ steps.versions.outputs.version }} latest
-        if: ${{ github.event_name == 'push' }}
-
-      - name: push images
-        run: |
           ./hack/push-images.sh latest
         if: ${{ github.event_name == 'push' }}
 
